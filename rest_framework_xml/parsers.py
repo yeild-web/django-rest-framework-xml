@@ -10,6 +10,26 @@ from rest_framework.parsers import BaseParser
 
 from .compat import etree
 
+import re
+_parser = re.compile(r"""        # A numeric string consists of:
+#    \s*
+    (?P<sign>[-+])?              # an optional sign, followed by either...
+    (
+        (?=\d|\.\d)              # ...a number (with at least one digit)
+        (?P<int>\d*)             # having a (possibly empty) integer part
+        (\.(?P<frac>\d*))?       # followed by an optional fractional part
+        (E(?P<exp>[-+]+?\d+))?    # followed by an optional exponent, or...
+    |
+        Inf(inity)?              # ...an infinity, or...
+    |
+        (?P<signal>s)?           # ...an (optionally signaling)
+        NaN                      # NaN
+        (?P<diag>\d*)            # with (possibly empty) diagnostic info.
+    )
+#    \s*
+    \Z
+""", re.VERBOSE | re.IGNORECASE).match
+
 
 class XMLParser(BaseParser):
     """
@@ -76,7 +96,8 @@ class XMLParser(BaseParser):
             pass
 
         try:
-            return decimal.Decimal(value)
+            if _parser(value.strip().replace("_", "")):
+                return decimal.Decimal(value)
         except decimal.InvalidOperation:
             pass
 
